@@ -16,6 +16,12 @@ async def setup(context: InjectionContext):
         LOGGER.warning("No DID Resolver instance found in context")
         return
 
+    qmc_resolver = ClassProvider(
+        "acapy_agent.resolver.default.qmc.QmcDIDResolver"
+    ).provide(context.settings, context.injector)
+    await qmc_resolver.setup(context)
+    registry.register_resolver(qmc_resolver)
+
     legacy_resolver = ClassProvider(
         "acapy_agent.resolver.default.legacy_peer.LegacyPeerDIDResolver"
     ).provide(context.settings, context.injector)

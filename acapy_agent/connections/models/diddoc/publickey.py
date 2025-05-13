@@ -41,6 +41,16 @@ class PublicKeyType(Enum):
         "Secp256k1SignatureAuthenticationKey2018",
         "publicKeyHex",
     )
+    MLDSA44_SIG_2025 = LinkedDataKeySpec(
+        "MLDSA44VerificationKey2025",
+        "MLDSA44SignatureAuthentication2025",
+        "publicKeyBase58",
+    )
+    MLKEM512_KEM_2025 = LinkedDataKeySpec(
+        "MLKEM512KeyAgreementKey2025",
+        "MLKEM512KeyAgreementKey2025",
+        "publicKeyBase58",
+    )
 
     @staticmethod
     def get(val: str) -> "PublicKeyType":

@@ -21,6 +21,8 @@ from pydid.verification_method import (
     Ed25519VerificationKey2020,
     JsonWebKey2020,
     Multikey,
+    MLDSA44VerificationKey2025,
+    MLKEM512KeyAgreementKey2025,
 )
 
 from ..cache.base import BaseCache
@@ -293,7 +295,8 @@ class BaseConnectionManager:
 
     async def create_did_document(
         self,
-        did_info: DIDInfo,
+        did_info_dsa: DIDInfo,
+        did_info_kem: DIDInfo,
         svc_endpoints: Optional[Sequence[str]] = None,
         mediation_records: Optional[List[MediationRecord]] = None,
     ) -> DIDDoc:
@@ -314,18 +317,29 @@ class BaseConnectionManager:
 
         """
         warnings.warn("create_did_document is deprecated and will be removed soon")
-        did_doc = DIDDoc(did=did_info.did)
-        did_controller = did_info.did
-        did_key = did_info.verkey
-        pk = PublicKey(
-            did_info.did,
+        did_doc = DIDDoc(did=did_info_dsa.did)
+        did_controller = did_info_dsa.did
+        did_key = did_info_dsa.verkey
+        did_key_kem = did_info_kem.verkey
+        pk_dsa = PublicKey(
+            did_info_dsa.did,
             "1",
             did_key,
-            PublicKeyType.ED25519_SIG_2018,
+            PublicKeyType.MLDSA44_SIG_2025,
             did_controller,
             True,
         )
-        did_doc.set(pk)
+        did_doc.set(pk_dsa)
+
+        pk_kem = PublicKey(
+            did_info_dsa.did,
+            "2",
+            did_key_kem,
+            PublicKeyType.MLKEM512_KEM_2025,
+            did_controller,
+            True,
+        )
+        did_doc.set(pk_kem)
 
         routing_keys: List[str] = []
         if mediation_records:
@@ -343,10 +357,11 @@ class BaseConnectionManager:
         for endpoint_index, svc_endpoint in enumerate(svc_endpoints or []):
             endpoint_ident = "indy" if endpoint_index == 0 else f"indy{endpoint_index}"
             service = Service(
-                did_info.did,
+                did_info_dsa.did,
                 endpoint_ident,
                 "IndyAgent",
-                [pk],
+                [pk_kem],
+                [pk_dsa],
                 routing_keys,
                 svc_endpoint,
             )
@@ -462,7 +477,7 @@ class BaseConnectionManager:
 
     async def verification_methods_for_service(
         self, doc: ResolvedDocument, service: DIDCommService
-    ) -> Tuple[List[VerificationMethod], List[VerificationMethod]]:
+    ) -> Tuple[List[VerificationMethod], List[VerificationMethod], List[VerificationMethod]]:
         """Dereference recipient and routing keys.
 
         Returns verification methods for a DIDComm service to enable extracting
@@ -475,17 +490,23 @@ class BaseConnectionManager:
             )
             for url in service.recipient_keys
         ]
+        signing_keys: List[VerificationMethod] = [
+            await resolver.dereference_verification_method(
+                self._profile, url, document=doc
+            )
+            for url in service.signing_keys
+        ]
         routing_keys: List[VerificationMethod] = [
             await resolver.dereference_verification_method(
                 self._profile, url, document=doc
             )
             for url in service.routing_keys
         ]
-        return recipient_keys, routing_keys
+        return recipient_keys, signing_keys, routing_keys
 
     async def resolve_invitation(
         self, did: str, service_accept: Optional[Sequence[Text]] = None
-    ) -> Tuple[str, List[str], List[str]]:
+    ) -> Tuple[str, List[str], List[str], List[str]]:
         """Resolve invitation with the DID Resolver.
 
         Args:
@@ -509,13 +530,14 @@ class BaseConnectionManager:
         first_didcomm_service, *_ = didcomm_services
 
         endpoint = str(first_didcomm_service.service_endpoint)
-        recipient_keys, routing_keys = await self.verification_methods_for_service(
+        recipient_keys, signing_keys, routing_keys = await self.verification_methods_for_service(
             doc, first_didcomm_service
         )
 
         return (
             endpoint,
             [self._extract_key_material_in_base58_format(key) for key in recipient_keys],
+            [self._extract_key_material_in_base58_format(key) for key in signing_keys],
             [self._extract_key_material_in_base58_format(key) for key in routing_keys],
         )
 
@@ -526,10 +548,14 @@ class BaseConnectionManager:
         """
         doc, didcomm_services = await self.resolve_didcomm_services(did)
         for service in didcomm_services:
-            recips, _ = await self.verification_methods_for_service(doc, service)
+            recips, signing, _ = await self.verification_methods_for_service(doc, service)
             for recip in recips:
                 await self.add_key_for_did(
                     did, self._extract_key_material_in_base58_format(recip)
+                )
+            for sign in signing:
+                await self.add_key_for_did(
+                    did, self._extract_key_material_in_base58_format(sign)
                 )
 
     async def resolve_connection_targets(
@@ -546,7 +572,7 @@ class BaseConnectionManager:
         targets = []
         for service in didcomm_services:
             try:
-                recips, routing = await self.verification_methods_for_service(
+                recips, signing, routing = await self.verification_methods_for_service(
                     doc, service
                 )
                 endpoint = str(service.service_endpoint)
@@ -558,6 +584,10 @@ class BaseConnectionManager:
                         recipient_keys=[
                             self._extract_key_material_in_base58_format(key)
                             for key in recips
+                        ],
+                        signing_keys=[
+                            self._extract_key_material_in_base58_format(key)
+                            for key in signing
                         ],
                         routing_keys=[
                             self._extract_key_material_in_base58_format(key)
@@ -578,6 +608,10 @@ class BaseConnectionManager:
     @staticmethod
     def _extract_key_material_in_base58_format(method: VerificationMethod) -> str:
         if isinstance(method, Ed25519VerificationKey2018):
+            return method.material
+        elif isinstance(method, MLDSA44VerificationKey2025):
+            return method.material
+        elif isinstance(method, MLKEM512KeyAgreementKey2025):
             return method.material
         elif isinstance(method, Ed25519VerificationKey2020):
             raw_data = multibase.decode(method.material)
@@ -648,6 +682,9 @@ class BaseConnectionManager:
             recipient_keys = [
                 DIDKey.from_did(k).public_key_b58 for k in oob_service_item.recipient_keys
             ]
+            signing_keys = [
+                DIDKey.from_did(k).public_key_b58 for k in oob_service_item.signing_keys
+            ]
             routing_keys = [
                 DIDKey.from_did(k).public_key_b58 for k in oob_service_item.routing_keys
             ]
@@ -658,6 +695,7 @@ class BaseConnectionManager:
                 endpoint=endpoint,
                 label=invitation.label if invitation else None,
                 recipient_keys=recipient_keys,
+                signing_keys=signing_keys,
                 routing_keys=routing_keys,
                 sender_key=sender_verkey,
             )
@@ -697,6 +735,7 @@ class BaseConnectionManager:
             (
                 endpoint,
                 recipient_keys,
+                signing_keys,
                 routing_keys,
             ) = await self.resolve_invitation(connection.their_did)
             targets = [
@@ -705,6 +744,7 @@ class BaseConnectionManager:
                     endpoint=endpoint,
                     label=None,
                     recipient_keys=recipient_keys,
+                    signing_keys=signing_keys,
                     routing_keys=routing_keys,
                     sender_key=sender_verkey,
                 )

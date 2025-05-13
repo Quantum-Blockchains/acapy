@@ -4,7 +4,7 @@ from enum import Enum
 from typing import Dict, List, Mapping, Optional
 
 from .error import BaseError
-from .key_type import BLS12381G2, ED25519, P256, X25519, KeyType
+from .key_type import BLS12381G2, ED25519, P256, X25519, ML_DSA_44, ML_KEM_512,  KeyType
 
 
 class HolderDefinedDid(Enum):
@@ -97,6 +97,13 @@ WEBVH = DIDMethod(
     holder_defined_did=HolderDefinedDid.NO,
 )
 
+QMC = DIDMethod(
+    name="qmc",
+    key_types=[ML_DSA_44, ML_KEM_512],
+    rotation=True,
+    holder_defined_did=HolderDefinedDid.ALLOWED,
+)
+
 
 class DIDMethods:
     """DID Method class specifying DID methods with supported key types."""
@@ -110,6 +117,7 @@ class DIDMethods:
             PEER2.method_name: PEER2,
             PEER4.method_name: PEER4,
             WEBVH.method_name: WEBVH,
+            QMC.method_name: QMC,
         }
 
     def registered(self, method: str) -> bool:

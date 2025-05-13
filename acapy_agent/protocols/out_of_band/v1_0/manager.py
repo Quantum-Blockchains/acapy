@@ -24,7 +24,7 @@ from ....wallet.base import BaseWallet
 from ....wallet.did_info import DIDInfo, INVITATION_REUSE_KEY
 from ....wallet.did_method import PEER2, PEER4
 from ....wallet.error import WalletNotFoundError
-from ....wallet.key_type import ED25519
+from ....wallet.key_type import ED25519, ML_DSA_44, ML_KEM_512
 from ...coordinate_mediation.v1_0.models.mediation_record import MediationRecord
 from ...coordinate_mediation.v1_0.route_manager import RouteManager
 from ...didcomm_prefix import DIDCommPrefix
@@ -65,6 +65,7 @@ class InvitationCreator:
         invitation_url: str
         invitation: InvitationMessage
         our_recipient_key: str
+        our_signing_key: str
         connection: Optional[ConnRecord]
         service: Optional[ServiceDecorator]
 
@@ -481,7 +482,10 @@ class InvitationCreator:
         """Create an invitation using legacy bare public key and inline service."""
         async with self.profile.session() as session:
             wallet = session.inject(BaseWallet)
-            connection_key = await wallet.create_signing_key(ED25519)
+            connection_key_dsa = await wallet.create_signing_key(ML_DSA_44)
+        async with self.profile.session() as session:
+            wallet = session.inject(BaseWallet)
+            connection_key_kem = await wallet.create_key(ML_KEM_512)
 
         routing_keys, routing_endpoint = await self.route_manager.routing_info(
             self.profile, mediation_record
@@ -490,12 +494,18 @@ class InvitationCreator:
             (
                 key
                 if len(key.split(":")) == 3
-                else DIDKey.from_public_key_b58(key, ED25519).key_id
+                else DIDKey.from_public_key_b58(key, ML_DSA_44).key_id
             )
             for key in routing_keys or []
         ]
+        tmp_1 = DIDKey.from_public_key_b58(connection_key_dsa.verkey, ML_DSA_44)
+        tmp_2 = DIDKey.from_public_key_b58(connection_key_kem.verkey, ML_KEM_512)
         recipient_keys = [
-            DIDKey.from_public_key_b58(connection_key.verkey, ED25519).key_id
+            tmp_2.key_id,
+        ]
+
+        signing_keys = [
+            tmp_1.key_id,
         ]
 
         my_endpoint = routing_endpoint or self.my_endpoint
@@ -513,6 +523,7 @@ class InvitationCreator:
                     _id="#inline",
                     _type="did-communication",
                     recipient_keys=recipient_keys,
+                    signing_keys=signing_keys,
                     service_endpoint=my_endpoint,
                     routing_keys=routing_keys,
                 )
@@ -523,16 +534,17 @@ class InvitationCreator:
 
         if self.handshake_protocols:
             conn_rec = await self.handle_handshake_protos(
-                connection_key.verkey, invi_msg, mediation_record
+                connection_key_dsa.verkey, invi_msg, mediation_record
             )
             our_service = None
         else:
             await self.route_manager.route_verkey(
-                self.profile, connection_key.verkey, mediation_record
+                self.profile, connection_key_dsa.verkey, mediation_record
             )
             conn_rec = None
             our_service = ServiceDecorator(
                 recipient_keys=self.did_keys_to_keys(recipient_keys),
+                signing_keys=self.did_keys_to_keys(signing_keys),
                 endpoint=my_endpoint,
                 routing_keys=self.did_keys_to_keys(routing_keys),
             )
@@ -540,7 +552,8 @@ class InvitationCreator:
         return self.CreateResult(
             invitation_url=invi_msg.to_url(),
             invitation=invi_msg,
-            our_recipient_key=connection_key.verkey,
+            our_recipient_key=connection_key_kem.verkey,
+            our_signing_key=connection_key_dsa.verkey,
             connection=conn_rec,
             service=our_service,
         )

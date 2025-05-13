@@ -17,7 +17,7 @@ from .bbs import (
     verify_signed_messages_bls12381g2,
 )
 from .error import WalletError
-from .key_type import BLS12381G2, ED25519, KeyType
+from .key_type import BLS12381G2, ED25519, ML_DSA_44, KeyType
 from .util import b58_to_bytes, b64_to_bytes, bytes_to_b58, random_seed
 
 
@@ -211,8 +211,39 @@ def verify_signed_message(
             )
         except BbsException as e:
             raise WalletError("Unable to verify message") from e
+    elif key_type == ML_DSA_44:
+        if len(messages) > 1:
+            raise WalletError("ed25519 can only verify a single message")
+        return verify_signed_message_mldsa44(
+            message=messages[0], signature=signature, verkey=verkey
+        )
     else:
         raise WalletError(f"Unsupported key type: {key_type.key_type}")
+
+
+def verify_signed_message_mldsa44(
+    message: bytes, signature: bytes, verkey: bytes
+) -> bool:
+    from aries_askar import Key, KeyAlg
+    """Verify an mldsa44 signed message according to a public verification key.
+
+    Args:
+        message: The message to verify
+        signature: The signature to verify
+        verkey: The verkey to use in verification
+
+    Returns:
+        True if verified, else False
+
+    """
+    vk = Key.from_public_bytes(KeyAlg.ML_DSA_44, verkey)
+    ver = vk.verify_signature(message, signature)
+    return ver
+    # try:
+    #     nacl.bindings.crypto_sign_open(signature + message, verkey)
+    # except nacl.exceptions.BadSignatureError:
+    #     return False
+    # return True
 
 
 def verify_signed_message_ed25519(
@@ -467,21 +498,42 @@ def extract_pack_recipients(recipients: Sequence[JweRecipient]) -> dict:
             raise ValueError("Blank recipient key")
         if recip_vk_b58 in result:
             raise ValueError("Duplicate recipient key")
+        
+        sigkey_b58 = recip.header.get("sigkey")
 
         sender_b64 = recip.header.get("sender")
         enc_sender = from_b64url(sender_b64) if sender_b64 else None
 
-        nonce_b64 = recip.header.get("iv")
-        if sender_b64 and not nonce_b64:
-            raise ValueError("Missing iv")
-        elif not sender_b64 and nonce_b64:
-            raise ValueError("Unexpected iv")
-        nonce = from_b64url(nonce_b64) if nonce_b64 else None
+        tag_sender_b64 = recip.header.get("tag_sender")
+        tag_sender = from_b64url(tag_sender_b64) if tag_sender_b64 else None
 
+        nonce_sender_b64 = recip.header.get("nonce_sender")
+        nonce_sender = from_b64url(nonce_sender_b64) if nonce_sender_b64 else None
+
+        tag_cek_b64 = recip.header.get("tag_cek")
+        tag_cek = from_b64url(tag_cek_b64) if tag_cek_b64 else None
+
+        nonce_cek_b64 = recip.header.get("nonce_cek")
+        nonce_cek = from_b64url(nonce_cek_b64) if nonce_cek_b64 else None
+
+        # nonce_b64 = recip.header.get("iv")
+        # if sender_b64 and not nonce_b64:
+        #     raise ValueError("Missing iv")
+        # elif not sender_b64 and nonce_b64:
+        #     raise ValueError("Unexpected iv")
+        # nonce = from_b64url(nonce_b64) if nonce_b64 else None
+        ct_b64 = recip.header.get("ct")
+        ct = from_b64url(ct_b64) if ct_b64 else None
         result[recip_vk_b58] = {
             "sender": enc_sender,
-            "nonce": nonce,
+            # "nonce": nonce,
             "key": recip.encrypted_key,
+            "tag_sender": tag_sender,
+            "nonce_sender": nonce_sender,
+            "tag_cek": tag_cek,
+            "nonce_cek": nonce_cek,
+            "ct": ct,
+            "sigkey": sigkey_b58,
         }
     return result
 

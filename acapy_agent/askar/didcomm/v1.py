@@ -14,8 +14,8 @@ from ...wallet.util import b58_to_bytes, bytes_to_b58
 
 
 def pack_message(
-    to_verkeys: Sequence[str], from_key: Optional[Key], message: bytes
-) -> bytes:
+    to_verkeys: Sequence[str], to_sigkeys: Sequence[str], from_key: Optional[Key], message: bytes
+) -> bytes: 
     """Encode a message using the DIDComm v1 'pack' algorithm."""
     wrapper = JweEnvelope(with_protected_recipients=True, with_flatten_recipients=False)
     cek = Key.generate(KeyAlg.C20P)
@@ -24,34 +24,62 @@ def pack_message(
     sender_vk = (
         bytes_to_b58(from_key.get_public_bytes()).encode("utf-8") if from_key else None
     )
-    sender_xk = from_key.convert_key(KeyAlg.X25519) if from_key else None
-
+    # sender_xk = from_key.convert_key(KeyAlg.X25519) if from_key else None
     for target_vk in to_verkeys:
-        target_xk = Key.from_public_bytes(
-            KeyAlg.ED25519, b58_to_bytes(target_vk)
-        ).convert_key(KeyAlg.X25519)
+        # target_xk = Key.from_public_bytes(
+        #     KeyAlg.ED25519, b58_to_bytes(target_vk)
+        # ).convert_key(KeyAlg.X25519)
+        target_xk = Key.from_public_bytes(KeyAlg.ML_KEM_512, b58_to_bytes(target_vk))
         if sender_vk:
-            enc_sender = crypto_box.crypto_box_seal(target_xk, sender_vk)
-            nonce = crypto_box.random_nonce()
-            enc_cek = crypto_box.crypto_box(target_xk, sender_xk, cek_b, nonce)
+            # enc_sender = crypto_box.crypto_box_seal(target_xk, sender_vk)
+            # nonce = crypto_box.random_nonce()
+            # enc_cek = crypto_box.crypto_box(target_xk, sender_xk, cek_b, nonce)
+
+            ss, ct = target_xk.encapsulate()
+            enc_key = Key.from_secret_bytes(KeyAlg.C20P, ss)
+            enc_sender = enc_key.aead_encrypt(sender_vk)
+            ciphertext_sender, tag_sender, nonce_sender = enc_sender.parts
+            enc_cek = enc_key.aead_encrypt(cek_b)
+            ciphertext_cek, tag_cek, nonce_cek = enc_cek.parts
             wrapper.add_recipient(
                 JweRecipient(
-                    encrypted_key=enc_cek,
+                    encrypted_key=ciphertext_cek,
                     header=OrderedDict(
                         [
                             ("kid", target_vk),
-                            ("sender", b64url(enc_sender)),
-                            ("iv", b64url(nonce)),
+                            ("sender", b64url(ciphertext_sender)),
+                            ("tag_sender", b64url(tag_sender)),
+                            ("nonce_sender", b64url(nonce_sender)),
+                            ("tag_cek", b64url(tag_cek)),
+                            ("nonce_cek", b64url(nonce_cek)),
+                            ("ct", b64url(ct)),
+                            ("sigkey", to_sigkeys),
+                            # ("iv", b64url(nonce)),
                         ]
                     ),
                 )
             )
         else:
-            enc_sender = None
-            nonce = None
-            enc_cek = crypto_box.crypto_box_seal(target_xk, cek_b)
+            # enc_sender = None
+            # nonce = None
+            # enc_cek = crypto_box.crypto_box_seal(target_xk, cek_b)
+            ss, ct = target_xk.encapsulate()
+            enc_key = Key.from_secret_bytes(KeyAlg.C20P, ss)
+            enc_cek = enc_key.aead_encrypt(cek_b)
+            ciphertext_cek, tag_cek, nonce_cek = enc_cek.parts
             wrapper.add_recipient(
-                JweRecipient(encrypted_key=enc_cek, header={"kid": target_vk})
+                JweRecipient(
+                    encrypted_key=ciphertext_cek,
+                    header=OrderedDict(
+                        [
+                            ("kid", target_vk),
+                            ("tag_cek", b64url(tag_cek)),
+                            ("nonce_cek", b64url(nonce_cek)),
+                            ("ct", ct),
+                            ("sigkey", to_sigkeys),
+                        ]
+                    ),
+                )
             )
     wrapper.set_protected(
         OrderedDict(
@@ -86,7 +114,7 @@ async def unpack_message(session: Session, enc_message: bytes) -> Tuple[str, str
     for recip_vk in recips:
         recip_key_entry = await session.fetch_key(recip_vk)
         if recip_key_entry:
-            payload_key, sender_vk = _extract_payload_key(
+            payload_key, sender_vk, sigkey = _extract_payload_key(
                 recips[recip_vk], recip_key_entry.key
             )
             break
@@ -105,27 +133,50 @@ async def unpack_message(session: Session, enc_message: bytes) -> Tuple[str, str
         tag=wrapper.tag,
         aad=wrapper.protected_bytes,
     )
-    return message, recip_vk, sender_vk
+    return message, sigkey, sender_vk
 
 
-def _extract_payload_key(sender_cek: dict, recip_secret: Key) -> Tuple[bytes, str]:
+def _extract_payload_key(sender_cek: dict, recip_secret: Key) -> Tuple[bytes, str, str]:
     """Extract the payload key from pack recipient details.
 
     Returns: A tuple of the CEK and sender verkey
     """
-    recip_x = recip_secret.convert_key(KeyAlg.X25519)
+    # recip_x = recip_secret.convert_key(KeyAlg.X25519)
 
-    if sender_cek["nonce"] and sender_cek["sender"]:
-        sender_vk = crypto_box.crypto_box_seal_open(recip_x, sender_cek["sender"]).decode(
-            "utf-8"
-        )
-        sender_x = Key.from_public_bytes(
-            KeyAlg.ED25519, b58_to_bytes(sender_vk)
-        ).convert_key(KeyAlg.X25519)
-        cek = crypto_box.crypto_box_open(
-            recip_x, sender_x, sender_cek["key"], sender_cek["nonce"]
+    # if sender_cek["nonce"] and sender_cek["sender"]:
+    sigkey = sender_cek["sigkey"]
+
+    if sender_cek["ct"] and sender_cek["sender"] and sender_cek["tag_sender"] and sender_cek["nonce_sender"]:
+
+        ss = recip_secret.decapsulate(sender_cek["ct"])
+        key = Key.from_secret_bytes(KeyAlg.C20P, ss)
+
+        sender_vk = key.aead_decrypt(
+            sender_cek["sender"],
+            nonce=sender_cek["nonce_sender"],
+            tag=sender_cek["tag_sender"]
+        ).decode("utf-8")
+
+        # sender_vk = crypto_box.crypto_box_seal_open(recip_x, sender_cek["sender"]).decode(
+        #     "utf-8"
+        # )
+        # sender_x = Key.from_public_bytes(
+        #     KeyAlg.ED25519, b58_to_bytes(sender_vk)
+        # ).convert_key(KeyAlg.X25519)
+        # cek = crypto_box.crypto_box_open(
+        #     recip_x, sender_x, sender_cek["key"], sender_cek["nonce"]
+        # )
+        cek = key.aead_decrypt(
+            sender_cek["key"],
+            nonce=sender_cek["nonce_cek"],
+            tag=sender_cek["tag_cek"]
         )
     else:
         sender_vk = None
-        cek = crypto_box.crypto_box_seal_open(recip_x, sender_cek["key"])
-    return cek, sender_vk
+        # cek = crypto_box.crypto_box_seal_open(recip_x, sender_cek["key"])
+        cek = key.aead_decrypt(
+            sender_cek["key"],
+            nonce=sender_cek["nonce_cek"],
+            tag=sender_cek["tag_cek"]
+        )
+    return cek, sender_vk, sigkey[0]

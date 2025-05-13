@@ -22,10 +22,10 @@ from ....messaging.responder import BaseResponder
 from ....storage.error import StorageNotFoundError
 from ....transport.inbound.receipt import MessageReceipt
 from ....wallet.base import BaseWallet
-from ....wallet.did_method import SOV
+from ....wallet.did_method import SOV, QMC
 from ....wallet.did_posture import DIDPosture
 from ....wallet.error import WalletError
-from ....wallet.key_type import ED25519
+from ....wallet.key_type import ED25519, ML_DSA_44, ML_KEM_512
 from ...coordinate_mediation.v1_0.manager import MediationManager
 from ...coordinate_mediation.v1_0.models.mediation_record import MediationRecord
 from ...discovery.v2_0.manager import V20DiscoveryMgr
@@ -132,7 +132,7 @@ class DIDXManager(BaseConnectionManager):
         # Create connection record
         conn_rec = ConnRecord(
             invitation_key=(
-                DIDKey.from_did(service_item.recipient_keys[0]).public_key_b58
+                DIDKey.from_did(service_item.signing_keys[0]).public_key_b58
                 if isinstance(service_item, OOBService)
                 else None
             ),
@@ -499,21 +499,26 @@ class DIDXManager(BaseConnectionManager):
         else:
             async with self.profile.session() as session:
                 wallet = session.inject(BaseWallet)
-                my_info = await wallet.create_local_did(
-                    method=SOV,
-                    key_type=ED25519,
+                my_info_dsa = await wallet.create_local_did(
+                    method=QMC,
+                    key_type=ML_DSA_44,
                 )
-                conn_rec.my_did = my_info.did
+                my_info_kem = await wallet.create_local_did(
+                    method=QMC,
+                    key_type=ML_KEM_512,
+                )
+                conn_rec.my_did = my_info_dsa.did
 
-        posture = DIDPosture.get(my_info.metadata)
+        posture = DIDPosture.get(my_info_dsa.metadata)
         if posture in (
             DIDPosture.PUBLIC,
             DIDPosture.POSTED,
         ):
-            return my_info.did, None
+            return my_info_dsa.did, None
 
         did_doc = await self.create_did_document(
-            my_info,
+            my_info_dsa,
+            my_info_kem,
             my_endpoints,
             mediation_records=mediation_records,
         )
@@ -521,9 +526,9 @@ class DIDXManager(BaseConnectionManager):
 
         async with self.profile.session() as session:
             wallet = session.inject(BaseWallet)
-            await attach.data.sign(invitation_key or my_info.verkey, wallet)
+            await attach.data.sign(invitation_key or my_info_dsa.verkey, wallet)
 
-        return my_info.did, attach
+        return my_info_dsa.did, attach
 
     async def receive_request(
         self,

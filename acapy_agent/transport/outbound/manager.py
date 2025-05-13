@@ -443,6 +443,7 @@ class OutboundTransportManager:
             session,
             queued.message.payload,
             queued.target.recipient_keys,
+            queued.target.signing_keys,
             queued.target.routing_keys,
             queued.target.sender_key,
         )

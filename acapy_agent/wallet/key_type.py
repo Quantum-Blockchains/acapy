@@ -49,7 +49,8 @@ P256: KeyType = KeyType("p256", "p256-pub", b"\x80\x24", "ES256")
 BLS12381G1: KeyType = KeyType("bls12381g1", "bls12_381-g1-pub", b"\xea\x01", None)
 BLS12381G2: KeyType = KeyType("bls12381g2", "bls12_381-g2-pub", b"\xeb\x01", None)
 BLS12381G1G2: KeyType = KeyType("bls12381g1g2", "bls12_381-g1g2-pub", b"\xee\x01", None)
-
+ML_DSA_44: KeyType = KeyType("mldsa44", "mldsa44-pub", b"\xd2\x01", None)
+ML_KEM_512: KeyType = KeyType("mlkem512", "mlkem512-pub", b"\xd3\x01", None)
 
 class KeyTypes:
     """KeyType class specifying key types with multicodec name."""
@@ -63,6 +64,8 @@ class KeyTypes:
             BLS12381G1.key_type: BLS12381G1,
             BLS12381G2.key_type: BLS12381G2,
             BLS12381G1G2.key_type: BLS12381G1G2,
+            ML_DSA_44.key_type: ML_DSA_44,
+            ML_KEM_512.key_type: ML_KEM_512,
         }
         self._name_registry: dict[str, KeyType] = {
             ED25519.multicodec_name: ED25519,
@@ -71,6 +74,8 @@ class KeyTypes:
             BLS12381G1.multicodec_name: BLS12381G1,
             BLS12381G2.multicodec_name: BLS12381G2,
             BLS12381G1G2.multicodec_name: BLS12381G1G2,
+            ML_DSA_44.multicodec_name: ML_DSA_44,
+            ML_KEM_512.multicodec_name: ML_KEM_512,
         }
         self._prefix_registry: dict[bytes, KeyType] = {
             ED25519.multicodec_prefix: ED25519,
@@ -79,6 +84,8 @@ class KeyTypes:
             BLS12381G1.multicodec_prefix: BLS12381G1,
             BLS12381G2.multicodec_prefix: BLS12381G2,
             BLS12381G1G2.multicodec_prefix: BLS12381G1G2,
+            ML_DSA_44.multicodec_prefix: ML_DSA_44,
+            ML_KEM_512.multicodec_prefix: ML_KEM_512,
         }
 
     def register(self, key_type: KeyType):

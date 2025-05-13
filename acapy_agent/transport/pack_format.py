@@ -115,6 +115,7 @@ class PackWireFormat(BaseWireFormat):
         session: ProfileSession,
         message_json: Union[str, bytes],
         recipient_keys: Sequence[str],
+        signing_keys: Sequence[str],
         routing_keys: Sequence[str],
         sender_key: str,
     ) -> Union[str, bytes]:
@@ -134,6 +135,7 @@ class PackWireFormat(BaseWireFormat):
             session,
             message_json,
             recipient_keys,
+            signing_keys,
             routing_keys,
             sender_key,
         )
@@ -272,6 +274,7 @@ class V1PackWireFormat(BaseWireFormat):
         session: ProfileSession,
         message_json: Union[str, bytes],
         recipient_keys: Sequence[str],
+        signing_keys: Sequence[str],
         routing_keys: Sequence[str],
         sender_key: str,
     ) -> Union[str, bytes]:
@@ -294,7 +297,7 @@ class V1PackWireFormat(BaseWireFormat):
 
         if sender_key and recipient_keys:
             message = await self.pack(
-                session, message_json, recipient_keys, routing_keys, sender_key
+                session, message_json, recipient_keys, signing_keys, routing_keys, sender_key
             )
         else:
             message = message_json
@@ -305,6 +308,7 @@ class V1PackWireFormat(BaseWireFormat):
         session: ProfileSession,
         message_json: Union[str, bytes],
         recipient_keys: Sequence[str],
+        signing_keys: Sequence[str],
         routing_keys: Sequence[str],
         sender_key: str,
     ):
@@ -317,7 +321,7 @@ class V1PackWireFormat(BaseWireFormat):
             raise WireFormatEncodeError("No wallet instance")
 
         try:
-            message = await wallet.pack_message(message_json, recipient_keys, sender_key)
+            message = await wallet.pack_message(message_json, recipient_keys, signing_keys, sender_key)
         except WalletError as e:
             raise WireFormatEncodeError("Message pack failed") from e
 

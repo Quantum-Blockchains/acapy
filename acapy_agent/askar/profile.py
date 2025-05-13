@@ -18,6 +18,7 @@ from ..indy.issuer import IndyIssuer
 from ..indy.verifier import IndyVerifier
 from ..ledger.base import BaseLedger
 from ..ledger.indy_vdr import IndyVdrLedger, IndyVdrLedgerPool
+from ..ledger.qmc_ledger import QmcLedger
 from ..resolver.did_resolver import DIDResolver
 from ..storage.base import BaseStorage, BaseStorageSearch
 from ..storage.vc_holder.base import VCHolder
@@ -128,47 +129,52 @@ class AskarProfile(Profile):
                 ClassProvider.Inject(Profile),
             ),
         )
-        if (
-            self.settings.get("ledger.ledger_config_list")
-            and len(self.settings.get("ledger.ledger_config_list")) >= 1
-        ):
-            write_ledger_config = get_write_ledger_config_for_profile(
-                settings=self.settings
-            )
-            cache = self.context.injector.inject_or(BaseCache)
-            injector.bind_provider(
-                BaseLedger,
-                ClassProvider(
-                    IndyVdrLedger,
-                    IndyVdrLedgerPool(
-                        write_ledger_config.get("pool_name")
-                        or write_ledger_config.get("id"),
-                        keepalive=write_ledger_config.get("keepalive"),
-                        cache=cache,
-                        genesis_transactions=write_ledger_config.get(
-                            "genesis_transactions"
-                        ),
-                        read_only=write_ledger_config.get("read_only"),
-                        socks_proxy=write_ledger_config.get("socks_proxy"),
-                    ),
-                    ref(self),
-                ),
-            )
-            self.settings["ledger.write_ledger"] = write_ledger_config.get("id")
-            if (
-                "endorser_alias" in write_ledger_config
-                and "endorser_did" in write_ledger_config
-            ):
-                self.settings["endorser.endorser_alias"] = write_ledger_config.get(
-                    "endorser_alias"
-                )
-                self.settings["endorser.endorser_public_did"] = write_ledger_config.get(
-                    "endorser_did"
-                )
-        elif self.ledger_pool:
-            injector.bind_provider(
-                BaseLedger, ClassProvider(IndyVdrLedger, self.ledger_pool, ref(self))
-            )
+
+        injector.bind_provider(
+            BaseLedger, 
+            ClassProvider(QmcLedger, "http://127.0.0.1:9944" , ref(self))
+        )
+        # if (
+        #     self.settings.get("ledger.ledger_config_list")
+        #     and len(self.settings.get("ledger.ledger_config_list")) >= 1
+        # ):
+        #     write_ledger_config = get_write_ledger_config_for_profile(
+        #         settings=self.settings
+        #     )
+        #     cache = self.context.injector.inject_or(BaseCache)
+        #     injector.bind_provider(
+        #         BaseLedger,
+        #         ClassProvider(
+        #             IndyVdrLedger,
+        #             IndyVdrLedgerPool(
+        #                 write_ledger_config.get("pool_name")
+        #                 or write_ledger_config.get("id"),
+        #                 keepalive=write_ledger_config.get("keepalive"),
+        #                 cache=cache,
+        #                 genesis_transactions=write_ledger_config.get(
+        #                     "genesis_transactions"
+        #                 ),
+        #                 read_only=write_ledger_config.get("read_only"),
+        #                 socks_proxy=write_ledger_config.get("socks_proxy"),
+        #             ),
+        #             ref(self),
+        #         ),
+        #     )
+        #     self.settings["ledger.write_ledger"] = write_ledger_config.get("id")
+        #     if (
+        #         "endorser_alias" in write_ledger_config
+        #         and "endorser_did" in write_ledger_config
+        #     ):
+        #         self.settings["endorser.endorser_alias"] = write_ledger_config.get(
+        #             "endorser_alias"
+        #         )
+        #         self.settings["endorser.endorser_public_did"] = write_ledger_config.get(
+        #             "endorser_did"
+        #         )
+        # elif self.ledger_pool:
+        #     injector.bind_provider(
+        #         BaseLedger, ClassProvider(IndyVdrLedger, self.ledger_pool, ref(self))
+        #     )
         if self.ledger_pool or self.settings.get("ledger.ledger_config_list"):
             injector.bind_provider(
                 IndyVerifier,

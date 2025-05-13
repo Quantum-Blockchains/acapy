@@ -1,12 +1,17 @@
 ARG python_version=3.12
 FROM python:${python_version}-slim-bookworm AS build
 
+RUN python -m ensurepip --upgrade && \
+    pip install --upgrade pip
+
 WORKDIR /src
 
 COPY ./acapy_agent ./acapy_agent
 COPY ./pyproject.toml ./poetry.lock ./README.md ./
 
-RUN pip install --no-cache-dir poetry==1.8.3
+RUN apt-get update -y && apt-get install -y git
+
+RUN pip install --no-cache-dir poetry==2.1.2
 RUN poetry build
 
 FROM python:${python_version}-slim-bookworm AS main
@@ -47,6 +52,7 @@ RUN apt-get update -y && \
     apt-transport-https \
     ca-certificates \
     curl \
+    git \
     libffi-dev \
     libgmp10 \
     libncurses5 \
@@ -87,17 +93,25 @@ RUN ln -s /home/aries/.indy_client /home/indy/.indy_client
 # Install ACA-py from the wheel as $user,
 # and ensure the permissions on the python 'site-packages' and $HOME/.local folders are set correctly.
 USER $user
+
 COPY --from=build /src/dist/acapy_agent*.whl .
 RUN acapy_agent_package=$(find ./ -name "acapy_agent*.whl" | head -n 1) && \
     echo "Installing ${acapy_agent_package} ..." && \
     pip install --no-cache-dir --find-links=. ${acapy_agent_package}${acapy_reqs} && \
     rm acapy_agent*.whl && \
     chmod +rx $(python -m site --user-site) $HOME/.local
-
-    # Clean-up unnecessary build dependencies and reduce final image size
+# Clean-up unnecessary build dependencies and reduce final image size
 USER root
+
+# RUN apt-get update && apt-get install -y libssl-dev
+# RUN pip install jsonpointer~=3.0 cbor2~=5.0 pycose~=1.0 cwt~=2.0
+RUN pip install git+https://github.com/Quantum-Blockchains/acapy-plugins.git@qmc-1.2.0#subdirectory=oid4vc
+RUN pip install git+https://github.com/Quantum-Blockchains/acapy-plugins.git@qmc-1.2.0#subdirectory=qmc_registry
+
 RUN apt-get purge -y
 
 USER $user
+
+# COPY configs $HOME/configs
 
 ENTRYPOINT ["aca-py"]

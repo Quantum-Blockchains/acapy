@@ -6,6 +6,7 @@ from acapy_agent.did.did_key import DIDKey
 from acapy_agent.wallet.did_method import (
     KEY,
     SOV,
+    QMC,
     DIDMethod,
     DIDMethods,
     HolderDefinedDid,
@@ -13,6 +14,7 @@ from acapy_agent.wallet.did_method import (
 from acapy_agent.wallet.error import WalletError
 from acapy_agent.wallet.key_type import KeyType
 from acapy_agent.wallet.util import bytes_to_b58
+import hashlib
 
 
 class DIDParametersValidation:
@@ -60,5 +62,8 @@ class DIDParametersValidation:
             return DIDKey.from_public_key(verkey, key_type).did
         elif method == SOV:
             return bytes_to_b58(verkey[:16]) if not did else did
+        elif method == QMC:
+            h = hashlib.sha256(verkey).digest()
+            return "did:qmc:" + bytes_to_b58(h) if not did else did
 
         return did

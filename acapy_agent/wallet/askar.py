@@ -17,10 +17,10 @@ from ..storage.base import StorageDuplicateError, StorageNotFoundError, StorageR
 from .base import BaseWallet, DIDInfo, KeyInfo
 from .crypto import sign_message, validate_seed, verify_signed_message
 from .did_info import INVITATION_REUSE_KEY
-from .did_method import SOV, DIDMethod, DIDMethods
+from .did_method import SOV, QMC, DIDMethod, DIDMethods
 from .did_parameters_validation import DIDParametersValidation
 from .error import WalletDuplicateError, WalletError, WalletNotFoundError
-from .key_type import BLS12381G2, ED25519, P256, X25519, KeyType, KeyTypes
+from .key_type import BLS12381G2, ED25519, P256, X25519, ML_DSA_44, ML_KEM_512, KeyType, KeyTypes
 from .util import b58_to_bytes, bytes_to_b58
 
 CATEGORY_DID = "did"
@@ -586,7 +586,8 @@ class AskarWallet(BaseWallet):
 
         """
         did_info = await self.get_local_did(did)
-        if did_info.method != SOV:
+        # if did_info.method != SOV:
+        if did_info.method != SOV and did_info.method != QMC:
             raise WalletError("Setting DID endpoint is only allowed for did:sov DIDs")
         metadata = {**did_info.metadata}
         if not endpoint_type:
@@ -785,7 +786,9 @@ class AskarWallet(BaseWallet):
                 return pk.verify_signature(message, signature)
             except AskarError as err:
                 raise WalletError("Exception when verifying message signature") from err
-
+        elif key_type == ML_DSA_44:
+            pk = Key.from_public_bytes(KeyAlg.ML_DSA_44, verkey)
+            return pk.verify_signature(message, signature)
         # other key types are currently verified outside of Askar
         return verify_signed_message(
             message=message,
@@ -795,7 +798,7 @@ class AskarWallet(BaseWallet):
         )
 
     async def pack_message(
-        self, message: str, to_verkeys: Sequence[str], from_verkey: Optional[str] = None
+        self, message: str, to_verkeys: Sequence[str], to_kemkeys: Sequence[str], from_verkey: Optional[str] = None
     ) -> bytes:
         """Pack a message for one or more recipients.
 
@@ -823,7 +826,7 @@ class AskarWallet(BaseWallet):
             else:
                 from_key = None
             return await asyncio.get_event_loop().run_in_executor(
-                None, pack_message, to_verkeys, from_key, message
+                None, pack_message, to_verkeys, to_kemkeys, from_key, message
             )
         except AskarError as err:
             raise WalletError("Exception when packing message") from err
@@ -863,10 +866,18 @@ class AskarWallet(BaseWallet):
             did=did_info["did"],
             verkey=did_info["verkey"],
             metadata=did_info.get("metadata"),
-            method=did_methods.from_method(did_info.get("method", "sov")) or SOV,
-            key_type=key_types.from_key_type(did_info.get("verkey_type", "ed25519"))
-            or ED25519,
+            method=did_methods.from_method(did_info.get("method", "qmc")) or QMC,
+            key_type=key_types.from_key_type(did_info.get("verkey_type", "mldsa44"))
+            or ML_DSA_44,
         )
+        # return DIDInfo(
+        #         did=did_info["did"],
+        #         verkey=did_info["verkey"],
+        #         metadata=did_info.get("metadata"),
+        #         method=did_methods.from_method(did_info.get("method", "sov")) or SOV,
+        #         key_type=key_types.from_key_type(did_info.get("verkey_type", "ed25519"))
+        #         or ED25519,
+        #     )
 
 
 def _create_keypair(key_type: KeyType, seed: Union[str, bytes, None] = None) -> Key:
@@ -886,11 +897,17 @@ def _create_keypair(key_type: KeyType, seed: Union[str, bytes, None] = None) -> 
         method = SeedMethod.BlsKeyGen
     # elif key_type == BLS12381G1G2:
     #     alg = KeyAlg.BLS12_381_G1G2
+    elif key_type == ML_DSA_44:
+        alg = KeyAlg.ML_DSA_44
+        method = None
+    elif key_type == ML_KEM_512:
+        alg = KeyAlg.ML_KEM_512
+        method = None
     else:
         raise WalletError(f"Unsupported key algorithm: {key_type}")
     if seed:
         try:
-            if key_type in (ED25519, P256):
+            if key_type in (ED25519, P256, ML_DSA_44):
                 # not a seed - it is the secret key
                 seed = validate_seed(seed)
                 return Key.from_secret_bytes(alg, seed)

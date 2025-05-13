@@ -35,6 +35,7 @@ class Service:
         ident: str,
         typ: str,
         recip_keys: Union[Sequence, PublicKey],
+        signing_keys: Union[Sequence, PublicKey],
         routing_keys: List[str],
         endpoint: str,
         priority: int = 0,
@@ -68,6 +69,13 @@ class Service:
             if recip_keys
             else None
         )
+        self._signing_keys = (
+            [signing_keys]
+            if isinstance(signing_keys, PublicKey)
+            else list(signing_keys)
+            if signing_keys
+            else None
+        )
         self._routing_keys = routing_keys or []
         self._endpoint = endpoint
         self._priority = priority
@@ -95,6 +103,12 @@ class Service:
         """Accessor for the recipient keys."""
 
         return self._recip_keys
+    
+    @property
+    def signing_keys(self) -> List[PublicKey]:
+        """Accessor for the recipient keys."""
+
+        return self._signing_keys
 
     @property
     def routing_keys(self) -> List[str]:
@@ -120,6 +134,8 @@ class Service:
         rv = {"id": self.id, "type": self.type, "priority": self.priority}
         if self.recip_keys:
             rv["recipientKeys"] = [k.value for k in self.recip_keys]
+        if self.signing_keys:
+            rv["signingKeys"] = [k.value for k in self.signing_keys]
         if self.routing_keys:
             rv["routingKeys"] = self.routing_keys
         rv["serviceEndpoint"] = self.endpoint

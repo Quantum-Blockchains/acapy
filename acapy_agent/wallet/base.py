@@ -6,7 +6,7 @@ from typing import List, Optional, Sequence, Tuple, Union
 from ..ledger.base import BaseLedger
 from ..ledger.endpoint_type import EndpointType
 from .did_info import DIDInfo, KeyInfo
-from .did_method import SOV, DIDMethod
+from .did_method import SOV, QMC, DIDMethod
 from .error import WalletError
 from .key_type import KeyType
 
@@ -366,7 +366,7 @@ class BaseWallet(ABC):
 
     @abstractmethod
     async def pack_message(
-        self, message: str, to_verkeys: Sequence[str], from_verkey: Optional[str] = None
+        self, message: str, to_verkeys: Sequence[str], to_kemkeys: Sequence[str], from_verkey: Optional[str] = None
     ) -> bytes:
         """Pack a message for one or more recipients.
 

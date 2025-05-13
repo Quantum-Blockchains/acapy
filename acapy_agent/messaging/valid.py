@@ -361,6 +361,20 @@ class IndyDID(Regexp):
             error="Value {input} is not an indy decentralized identifier (DID)",
         )
 
+class QmcDID(Regexp):
+    """Validate value against indy DID."""
+
+    EXAMPLE = "8sxxpE51n4ri9Y5kcXkxyGC6L1UtQAqRjx7vU1AD2sbG"
+    PATTERN = re.compile(rf"^(did:qmc:)?[{B58}]{{43,44}}$")
+
+    def __init__(self):
+        """Initialize the instance."""
+
+        super().__init__(
+            QmcDID.PATTERN,
+            error="Value {input} is not an indy decentralized identifier (DID)",
+        )
+
 
 class AnoncredsDID(Regexp):
     """Validate value against anoncreds DID."""
@@ -436,6 +450,32 @@ class RawPublicEd25519VerificationKey2018(Regexp):
             error="Value {input} is not a raw Ed25519VerificationKey2018 key",
         )
 
+
+class RawPublicMLDSA44VerificationKey2025(Regexp):
+    """Validate value against (Ed25519VerificationKey2018) raw public key."""
+    EXAMPLE = "4a8Wwoky4f2XAbcSCddAgkj2uyVdYRkGb7pqULwMV1v34mTvqUkXBuFMD8K7MFunyiTu35F8U1hCTK4cSLEHH6e52e1p7esTnVbkPN5kJRiAnGm7ppTZL2ncvNkuUABNEjE8cSdqriqXgMmSD4FpLJHmwNtRfwRKBq77azbdm7mQMgRaKheHFT9Kch5q7XKBtpyeZvbM6NHRLu68QX5FTC9ha9EjHWoLJDeWXibaB1ghCTtbpdTQCesZtoYhu24gzFEtttQrNBxNpU1DFbrCH3e3tcMrPv3UiNFU7Nb2cuHGFoG8bvGyjjwLqengo45THdZwVGjo8XLQMGxEovuC6VRvHtibLp5LY787ZXbq93dYbPofvPq9bpgALJxazfcyZAoFiN9ACTxTMpLn8SDvLXNEfMQpFjRXb5FaTsxCh9Z6cAPJAe1xugU3Y8Huk2BA7HE6VFkkKugQhif7TtGpeBDXqXoRR99ea3ZacCzXjmsJhuVdf478CGek46udtxrE1Bejg5zejeV9Q9wPVVRodE9ap8ShB5ATtgt5Xz4H3qcSF4p2qP5Bxu5DEwsJaKhn8GM6tiSm38gEjGcUozoRFhLqVDjgDJS6Tv5FwQFNUka16Kssc6wSFERQdihnkLKcaCGovmpVsoi9js3czZ64s36FoYunhuyxd2kLx2y1qtAkxY99RsZCLLifZi7RWLnyPPnKXCVKaex7YP9Yfz1dvMiHjh454J81q3HEYmQftSQJjKYnXdqKJij5vhmuJKKW1rMSyJnvX5pJb49KBMrkavo15MdUXeon7cCMxaQF2aHM5iMKmYHLEDdpbV6StR11PV3T9411sPyesnXAKz4FgmDyQWz7wv4HVibi2X9vYKNtKrSFfnNGC9KBjkHBAi6VatLg16mtPtMwaJBRRUusy3kA26hvKcVFNTLKFE2HRghWsbaHsXPN7qYBjhmqfJTs1nbDyLpEstBZbHth4UVhRex7vX8pWEpuP1KWsN65zqGSH62rAad2kGDQe25m1badQGPUDH3Y1mP5RMJF6qRku6ue3nzrkKcAjJdNjY76mu32tb8MAWEGf4ZvTo7cH1crUwdcZ"
+    PATTERN = rf"^[{B58}]{{1791,1792}}$"
+
+    def __init__(self):
+        """Initialize the instance."""
+
+        super().__init__(
+            RawPublicMLDSA44VerificationKey2025.PATTERN,
+            error="Value {input} is not a raw MLDSA44VerificationKey2018 key",
+        )
+
+class RawPublicMLKEM512KeyAgrementKey2025(Regexp):
+    """Validate value against (Ed25519VerificationKey2018) raw public key."""
+    EXAMPLE = "4a8Wwoky4f2XAbcSCddAgkj2uyVdYRkGb7pqULwMV1v34mTvqUkXBuFMD8K7MFunyiTu35F8U1hCTK4cSLEHH6e52e1p7esTnVbkPN5kJRiAnGm7ppTZL2ncvNkuUABNEjE8cSdqriqXgMmSD4FpLJHmwNtRfwRKBq77azbdm7mQMgRaKheHFT9Kch5q7XKBtpyeZvbM6NHRLu68QX5FTC9ha9EjHWoLJDeWXibaB1ghCTtbpdTQCesZtoYhu24gzFEtttQrNBxNpU1DFbrCH3e3tcMrPv3UiNFU7Nb2cuHGFoG8bvGyjjwLqengo45THdZwVGjo8XLQMGxEovuC6VRvHtibLp5LY787ZXbq93dYbPofvPq9bpgALJxazfcyZAoFiN9ACTxTMpLn8SDvLXNEfMQpFjRXb5FaTsxCh9Z6cAPJAe1xugU3Y8Huk2BA7HE6VFkkKugQhif7TtGpeBDXqXoRR99ea3ZacCzXjmsJhuVdf478CGek46udtxrE1Bejg5zejeV9Q9wPVVRodE9ap8ShB5ATtgt5Xz4H3qcSF4p2qP5Bxu5DEwsJaKhn8GM6tiSm38gEjGcUozoRFhLqVDjgDJS6Tv5FwQFNUka16Kssc6wSFERQdihnkLKcaCGovmpVsoi9js3czZ64s36FoYunhuyxd2kLx2y1qtAkxY99RsZCLLifZi7RWLnyPPnKXCVKaex7YP9Yfz1dvMiHjh454J81q3HEYmQftSQJjKYnXdqKJij5vhmuJKKW1rMSyJnvX5pJb49KBMrkavo15MdUXeon7cCMxaQF2aHM5iMKmYHLEDdpbV6StR11PV3T9411sPyesnXAKz4FgmDyQWz7wv4HVibi2X9vYKNtKrSFfnNGC9KBjkHBAi6VatLg16mtPtMwaJBRRUusy3kA26hvKcVFNTLKFE2HRghWsbaHsXPN7qYBjhmqfJTs1nbDyLpEstBZbHth4UVhRex7vX8pWEpuP1KWsN65zqGSH62rAad2kGDQe25m1badQGPUDH3Y1mP5RMJF6qRku6ue3nzrkKcAjJdNjY76mu32tb8MAWEGf4ZvTo7cH1crUwdcZ"
+    PATTERN = rf"^[{B58}]{{1092,1093}}$"
+
+    def __init__(self):
+        """Initialize the instance."""
+
+        super().__init__(
+            RawPublicMLKEM512KeyAgrementKey2025.PATTERN,
+            error="Value {input} is not a raw MLKEM512KeyAgrementKey2018 key",
+        )
 
 class RoutingKey(Regexp):
     """Validate between indy or did key.
@@ -1046,6 +1086,12 @@ GENERIC_DID_EXAMPLE = MaybeIndyDID.EXAMPLE
 
 RAW_ED25519_2018_PUBLIC_KEY_VALIDATE = RawPublicEd25519VerificationKey2018()
 RAW_ED25519_2018_PUBLIC_KEY_EXAMPLE = RawPublicEd25519VerificationKey2018.EXAMPLE
+
+RAW_MLDSA44_2025_PUBLIC_KEY_VALIDATE = RawPublicMLDSA44VerificationKey2025()
+RAW_MLDSA44_2025_PUBLIC_KEY_EXAMPLE = RawPublicMLDSA44VerificationKey2025.EXAMPLE
+
+RAW_MLKEM512_2025_PUBLIC_KEY_VALIDATE = RawPublicMLKEM512KeyAgrementKey2025()
+RAW_MLKEM512_2025_PUBLIC_KEY_EXAMPLE = RawPublicMLKEM512KeyAgrementKey2025.EXAMPLE
 
 INDY_SCHEMA_ID_VALIDATE = IndySchemaId()
 INDY_SCHEMA_ID_EXAMPLE = IndySchemaId.EXAMPLE

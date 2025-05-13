@@ -11,8 +11,8 @@ from ..version import RECORD_TYPE_ACAPY_VERSION, __version__
 from ..wallet.base import BaseWallet
 from ..wallet.crypto import seed_to_did
 from ..wallet.did_info import DIDInfo
-from ..wallet.did_method import SOV
-from ..wallet.key_type import ED25519
+from ..wallet.did_method import SOV, QMC
+from ..wallet.key_type import ED25519, ML_DSA_44
 from .base import ConfigError
 from .injection_context import InjectionContext
 
@@ -111,8 +111,11 @@ async def wallet_config(
                 print(f"Created new local DID: {local_did}")
                 print(f"Verkey: {local_did_info.verkey}")
         else:
+            # public_did_info = await wallet.create_public_did(
+            #     method=SOV, key_type=ED25519, seed=wallet_seed
+            # )
             public_did_info = await wallet.create_public_did(
-                method=SOV, key_type=ED25519, seed=wallet_seed
+                method=QMC, key_type=ML_DSA_44, seed=wallet_seed
             )
             public_did = public_did_info.did
             if provision:

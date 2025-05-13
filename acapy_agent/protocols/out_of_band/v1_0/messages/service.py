@@ -28,6 +28,7 @@ class Service(BaseModel):
         _type: Optional[str] = None,
         did: Optional[str] = None,
         recipient_keys: Optional[Sequence[str]] = None,
+        signing_keys: Optional[Sequence[str]] = None,
         routing_keys: Optional[Sequence[str]] = None,
         service_endpoint: Optional[str] = None,
     ):
@@ -45,6 +46,7 @@ class Service(BaseModel):
         self._type = _type
         self.did = did
         self.recipient_keys = list(recipient_keys) if recipient_keys else []
+        self.signing_keys = list(signing_keys) if signing_keys else []
         self.routing_keys = list(routing_keys) if routing_keys else []
         self.service_endpoint = service_endpoint
 
@@ -81,6 +83,19 @@ class ServiceSchema(BaseModelSchema):
         data_key="recipientKeys",
         required=False,
         metadata={"description": "List of recipient keys"},
+    )
+
+    signing_keys = fields.List(
+        fields.Str(
+            validate=DID_KEY_OR_REF_VALIDATE,
+            metadata={
+                "description": "Signing public key",
+                "example": DID_KEY_OR_REF_EXAMPLE,
+            },
+        ),
+        data_key="signingKeys",
+        required=False,
+        metadata={"description": "List of signing keys"},
     )
 
     routing_keys = fields.List(

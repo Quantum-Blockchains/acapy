@@ -12,7 +12,7 @@ from uuid_utils import uuid4
 
 from ...did.did_key import DIDKey
 from ...wallet.base import BaseWallet
-from ...wallet.key_type import ED25519
+from ...wallet.key_type import ED25519, ML_DSA_44
 from ...wallet.util import (
     b58_to_bytes,
     b64_to_bytes,
@@ -363,10 +363,10 @@ class AttachDecoratorData(BaseModel):
             return str_to_b64(
                 json.dumps(
                     {
-                        "alg": "EdDSA",
+                        "alg": "MLDSA44",
                         "jwk": {
-                            "kty": "OKP",
-                            "crv": "Ed25519",
+                            "kty": "LATTICE",
+                            "crv": "ML-DSA-44",
                             "x": bytes_to_b64(
                                 b58_to_bytes(raw_key(verkey)), urlsafe=True, pad=False
                             ),
@@ -445,20 +445,20 @@ class AttachDecoratorData(BaseModel):
             b64_protected = sig.protected
             b64_sig = sig.signature
             protected = json.loads(b64_to_str(b64_protected, urlsafe=True))
-            assert "jwk" in protected and protected["jwk"].get("kty") == "OKP"
+            assert "jwk" in protected and protected["jwk"].get("kty") == "LATTICE"
 
             sign_input = (b64_protected + "." + b64_payload).encode("ascii")
             b_sig = b64_to_bytes(b64_sig, urlsafe=True)
             jwk = protected["jwk"]
             verkey = bytes_to_b58(b64_to_bytes(jwk["x"], urlsafe=True))
-            if not await wallet.verify_message(sign_input, b_sig, verkey, ED25519):
+            if not await wallet.verify_message(sign_input, b_sig, verkey, ML_DSA_44):
                 return False
 
             if "kid" in jwk:
                 encoded_pk = DIDKey.from_did(protected["jwk"]["kid"]).public_key_b58
                 verkey_to_check.append(encoded_pk)
                 if not await wallet.verify_message(
-                    sign_input, b_sig, encoded_pk, ED25519
+                    sign_input, b_sig, encoded_pk, ML_DSA_44
                 ):
                     return False
 

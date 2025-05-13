@@ -10,6 +10,10 @@ from ...messaging.valid import (
     GENERIC_DID_VALIDATE,
     RAW_ED25519_2018_PUBLIC_KEY_EXAMPLE,
     RAW_ED25519_2018_PUBLIC_KEY_VALIDATE,
+    RAW_MLDSA44_2025_PUBLIC_KEY_EXAMPLE,
+    RAW_MLDSA44_2025_PUBLIC_KEY_VALIDATE,
+    RAW_MLKEM512_2025_PUBLIC_KEY_EXAMPLE,
+    RAW_MLKEM512_2025_PUBLIC_KEY_VALIDATE,
 )
 
 
@@ -27,7 +31,8 @@ class ConnectionTarget(BaseModel):
         did: Optional[str] = None,
         endpoint: Optional[str] = None,
         label: Optional[str] = None,
-        recipient_keys: Optional[Sequence[str]] = None,
+        recipient_keys: Optional[Sequence[list[str]]] = None,
+        signing_keys: Optional[Sequence[str]] = None,
         routing_keys: Optional[Sequence[str]] = None,
         sender_key: Optional[str] = None,
     ):
@@ -45,6 +50,7 @@ class ConnectionTarget(BaseModel):
         self.endpoint = endpoint
         self.label = label
         self.recipient_keys = list(recipient_keys) if recipient_keys else []
+        self.signing_keys = list(signing_keys) if signing_keys else []
         self.routing_keys = list(routing_keys) if routing_keys else []
         self.sender_key = sender_key
 
@@ -73,16 +79,38 @@ class ConnectionTargetSchema(BaseModelSchema):
     label = fields.Str(
         required=False, metadata={"description": "Connection label", "example": "Bob"}
     )
+    # recipient_keys = fields.List(
+    #     fields.Str(
+    #         validate=RAW_ED25519_2018_PUBLIC_KEY_VALIDATE,
+    #         metadata={
+    #             "description": "Recipient public key",
+    #             "example": RAW_ED25519_2018_PUBLIC_KEY_EXAMPLE,
+    #         },
+    #     ),
+    #     required=False,
+    #     metadata={"description": "List of recipient keys"},
+    # )
     recipient_keys = fields.List(
         fields.Str(
-            validate=RAW_ED25519_2018_PUBLIC_KEY_VALIDATE,
+            validate=RAW_MLKEM512_2025_PUBLIC_KEY_VALIDATE,
             metadata={
                 "description": "Recipient public key",
-                "example": RAW_ED25519_2018_PUBLIC_KEY_EXAMPLE,
+                "example": RAW_MLKEM512_2025_PUBLIC_KEY_EXAMPLE,
             },
         ),
         required=False,
         metadata={"description": "List of recipient keys"},
+    )
+    signing_keys = fields.List(
+        fields.Str(
+            validate=RAW_MLDSA44_2025_PUBLIC_KEY_VALIDATE,
+            metadata={
+                "description": "Signing public key",
+                "example": RAW_MLDSA44_2025_PUBLIC_KEY_EXAMPLE,
+            },
+        ),
+        required=False,
+        metadata={"description": "List of signing keys"},
     )
     routing_keys = fields.List(
         fields.Str(
@@ -96,11 +124,19 @@ class ConnectionTargetSchema(BaseModelSchema):
         required=False,
         metadata={"description": "List of routing keys"},
     )
+    # sender_key = fields.Str(
+    #     required=False,
+    #     validate=RAW_ED25519_2018_PUBLIC_KEY_VALIDATE,
+    #     metadata={
+    #         "description": "Sender public key",
+    #         "example": RAW_ED25519_2018_PUBLIC_KEY_EXAMPLE,
+    #     },
+    # )
     sender_key = fields.Str(
         required=False,
-        validate=RAW_ED25519_2018_PUBLIC_KEY_VALIDATE,
+        validate=RAW_MLDSA44_2025_PUBLIC_KEY_VALIDATE,
         metadata={
             "description": "Sender public key",
-            "example": RAW_ED25519_2018_PUBLIC_KEY_EXAMPLE,
+            "example": RAW_MLDSA44_2025_PUBLIC_KEY_EXAMPLE,
         },
     )

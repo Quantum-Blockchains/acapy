@@ -33,6 +33,7 @@ from ..connections.base_manager import BaseConnectionManager, BaseConnectionMana
 from ..core.profile import Profile
 from ..indy.verifier import IndyVerifier
 from ..ledger.base import BaseLedger
+from ..ledger.qmc_ledger import QmcLedger
 from ..ledger.error import LedgerConfigError, LedgerTransactionError
 from ..ledger.multiple_ledger.base_manager import (
     BaseMultipleLedgerManager,
@@ -180,6 +181,8 @@ class Conductor:
         context.injector.bind_instance(
             IndyLedgerRequestsExecutor, IndyLedgerRequestsExecutor(self.root_profile)
         )
+
+        context.injector.bind_instance(BaseLedger, QmcLedger("http://127.0.0.1:9944", self.root_profile))
 
         # Configure the ledger
         if not await ledger_config(

@@ -10,6 +10,8 @@ from ..wallet.key_type import (
     ED25519,
     P256,
     X25519,
+    ML_DSA_44,
+    ML_KEM_512,
     KeyType,
     KeyTypes,
 )
@@ -277,6 +279,47 @@ def construct_did_key_ed25519(did_key: "DIDKey") -> dict:
 
     return did_doc
 
+def construct_did_key_ml_dsa_44(did_key: "DIDKey") -> dict:
+    """Construct ML-DSA-44 did:key.
+
+    Args:
+        did_key (DIDKey): did key instance to parse ml-dsa-44 did:key document from
+
+    Returns:
+        dict: The ml-dsa-44 did:key did document
+
+    """
+    return construct_did_signature_key_base(
+        id=did_key.did,
+        key_id=did_key.key_id,
+        verification_method={
+            "id": did_key.key_id,
+            "type": "MLDSA44Key2025",
+            "controller": did_key.did,
+            "publicKeyBase58": did_key.public_key_b58,
+        },
+    )
+
+def construct_did_key_ml_kem_512(did_key: "DIDKey") -> dict:
+    """Construct ML-DSA-44 did:key.
+
+    Args:
+        did_key (DIDKey): did key instance to parse ml-dsa-44 did:key document from
+
+    Returns:
+        dict: The ml-dsa-44 did:key did document
+
+    """
+    return construct_did_signature_key_base(
+        id=did_key.did,
+        key_id=did_key.key_id,
+        verification_method={
+            "id": did_key.key_id,
+            "type": "MLKEM512Key2025",
+            "controller": did_key.did,
+            "publicKeyBase58": did_key.public_key_b58,
+        },
+    )
 
 def construct_did_key_p256(did_key: "DIDKey") -> dict:
     """Construct P256 did:key.
@@ -336,4 +379,6 @@ DID_KEY_RESOLVERS = {
     BLS12381G2: construct_did_key_bls12381g2,
     BLS12381G1: construct_did_key_bls12381g1,
     BLS12381G1G2: construct_did_key_bls12381g1g2,
+    ML_DSA_44: construct_did_key_ml_dsa_44,
+    ML_KEM_512: construct_did_key_ml_kem_512,
 }

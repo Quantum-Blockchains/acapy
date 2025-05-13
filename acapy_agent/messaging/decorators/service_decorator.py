@@ -12,6 +12,8 @@ from ..models.base import BaseModel, BaseModelSchema
 from ..valid import (
     RAW_ED25519_2018_PUBLIC_KEY_EXAMPLE,
     RAW_ED25519_2018_PUBLIC_KEY_VALIDATE,
+    RAW_MLDSA44_2025_PUBLIC_KEY_VALIDATE,
+    RAW_MLDSA44_2025_PUBLIC_KEY_EXAMPLE,
 )
 
 
@@ -28,6 +30,7 @@ class ServiceDecorator(BaseModel):
         *,
         endpoint: str,
         recipient_keys: List[str],
+        signing_keys: List[str],
         routing_keys: Optional[List[str]] = None,
     ):
         """Initialize a ServiceDecorator instance.
@@ -41,6 +44,7 @@ class ServiceDecorator(BaseModel):
         super().__init__()
         self._endpoint = endpoint
         self._recipient_keys = recipient_keys
+        self._signing_keys = signing_keys
         self._routing_keys = routing_keys
 
     @property
@@ -83,17 +87,41 @@ class ServiceDecoratorSchema(BaseModelSchema):
         model_class = ServiceDecorator
         unknown = EXCLUDE
 
+    # recipient_keys = fields.List(
+    #     fields.Str(
+    #         validate=RAW_ED25519_2018_PUBLIC_KEY_VALIDATE,
+    #         metadata={
+    #             "description": "Recipient public key",
+    #             "example": RAW_ED25519_2018_PUBLIC_KEY_EXAMPLE,
+    #         },
+    #     ),
+    #     data_key="recipientKeys",
+    #     required=True,
+    #     metadata={"description": "List of recipient keys"},
+    # )
     recipient_keys = fields.List(
         fields.Str(
-            validate=RAW_ED25519_2018_PUBLIC_KEY_VALIDATE,
+            validate=RAW_MLDSA44_2025_PUBLIC_KEY_VALIDATE,
             metadata={
                 "description": "Recipient public key",
-                "example": RAW_ED25519_2018_PUBLIC_KEY_EXAMPLE,
+                "example": RAW_MLDSA44_2025_PUBLIC_KEY_EXAMPLE,
             },
         ),
         data_key="recipientKeys",
         required=True,
         metadata={"description": "List of recipient keys"},
+    )
+    signing_keys = fields.List(
+        fields.Str(
+            validate=RAW_MLDSA44_2025_PUBLIC_KEY_VALIDATE,
+            metadata={
+                "description": "Recipient public key",
+                "example": RAW_MLDSA44_2025_PUBLIC_KEY_EXAMPLE,
+            },
+        ),
+        data_key="signingKeys",
+        required=True,
+        metadata={"description": "List of signing keys"},
     )
     endpoint = fields.Str(
         data_key="serviceEndpoint",
@@ -103,12 +131,24 @@ class ServiceDecoratorSchema(BaseModelSchema):
             "example": "http://192.168.56.101:8020",
         },
     )
+    # routing_keys = fields.List(
+    #     fields.Str(
+    #         validate=RAW_ED25519_2018_PUBLIC_KEY_VALIDATE,
+    #         metadata={
+    #             "description": "Routing key",
+    #             "example": RAW_ED25519_2018_PUBLIC_KEY_EXAMPLE,
+    #         },
+    #     ),
+    #     data_key="routingKeys",
+    #     required=False,
+    #     metadata={"description": "List of routing keys"},
+    # )
     routing_keys = fields.List(
         fields.Str(
-            validate=RAW_ED25519_2018_PUBLIC_KEY_VALIDATE,
+            validate=RAW_MLDSA44_2025_PUBLIC_KEY_VALIDATE,
             metadata={
                 "description": "Routing key",
-                "example": RAW_ED25519_2018_PUBLIC_KEY_EXAMPLE,
+                "example": RAW_MLDSA44_2025_PUBLIC_KEY_EXAMPLE,
             },
         ),
         data_key="routingKeys",
